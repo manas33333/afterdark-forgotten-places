@@ -3,19 +3,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Search, SlidersHorizontal, Map as MapIcon, List, LocateFixed, ArrowUpRight, LoaderCircle } from 'lucide-react';
 import { AtlasMap } from '@/components/map';
-import { demoPlaces, TypePlace } from '@/lib/data';
+import { demoPlaces } from '@/lib/data';
 
 const cats = ['All categories', 'Industrial heritage', 'Ruins', 'Old estates', 'Deserted villages', 'Railway structures', 'Historical sites', 'Abandoned-looking architecture'];
 
 export default function Explore() {
-  const [places, setPlaces] = useState<TypePlace[]>(demoPlaces);
+  const [places, setPlaces] = useState<any[]>(demoPlaces);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All categories');
   const [mode, setMode] = useState<'split' | 'list'>('split');
   const [radius, setRadius] = useState('25');
   const [verified, setVerified] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<TypePlace | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
   const [center, setCenter] = useState<[number, number]>([80.9462, 26.8467]);
   const [notice, setNotice] = useState('');
 
@@ -48,7 +48,7 @@ export default function Explore() {
     });
   }, [places, category, verified, query]);
 
-  const selectPlace = useCallback((p: TypePlace) => {
+  const selectPlace = useCallback((p: any) => {
     setSelected(p);
   }, []);
 
