@@ -1,7 +1,108 @@
 'use client';
-import {useState} from 'react';import { supabase } from '@/lib/supabase';import {AtlasMap} from '@/components/map';import {demoPlaces,type Place} from '@/lib/data';import {CheckCircle2,MapPin,UploadCloud} from 'lucide-react';
-const initial=[80.9462,26.8467] as [number,number];
-export default function Submit(){const [title,setTitle]=useState('');const [category,setCategory]=useState('Ruins');const [description,setDescription]=useState('');const [area,setArea]=useState('');const [sources,setSources]=useState('');const [access,setAccess]=useState('Unknown');const [coords,setCoords]=useState(initial);const [files,setFiles]=useState<FileList|null>(null);const [consent,setConsent]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [done,setDone]=useState<{id:string;reference:string}|null>(null);
-async function submit(e:React.FormEvent){e.preventDefault();setError('');if(!consent){setError('Please confirm you have the right to share this information.');return}setBusy(true);try{const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){setError('Sign in is required to contribute. Add your Supabase project keys, then sign in using the configured auth flow.');return}let imageUrls:string[]=[];if(files?.length){for(const file of Array.from(files)){if(!file.type.startsWith('image/')||file.size>8*1024*1024)throw new Error('Images must be image files smaller than 8 MB.');const path=`${user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;const {error:uploadError}=await supabase.storage.from('submission-images').upload(path,file,{upsert:false,contentType:file.type});if(uploadError)throw uploadError;imageUrls.push(path)}}const res=await fetch('/api/submissions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,category,description,area,sources:sources.split('\n').map(s=>s.trim()).filter(Boolean),public_access:access,latitude:coords[1],longitude:coords[0],image_paths:imageUrls})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Submission failed.');setDone({id:data.id,reference:data.reference});}catch(e){setError(e instanceof Error?e.message:'Something went wrong. Please try again.')}finally{setBusy(false)}}
-if(done)return <div className="max-w-2xl mx-auto px-6 py-24 min-h-[75vh]"><CheckCircle2 size={38} className="text-[#c4d36b]"/><p className="eyebrow mt-7">FIELD NOTE RECEIVED</p><h1 className="serif text-5xl mt-3">Your record is<br/>under review.</h1><p className="muted text-sm leading-7 mt-5">It is private and will not appear in public search or on the map unless a moderator approves it.</p><div className="card p-5 mt-8"><p className="text-xs muted">SUBMISSION REFERENCE</p><p className="text-xl mt-2">{done.reference}</p><p className="text-xs muted mt-2">Record ID: {done.id}</p></div><a href="/" className="btn mt-7">Back to the atlas</a></div>;
-return <div className="max-w-6xl mx-auto px-6 md:px-10 py-12 md:py-20"><p className="eyebrow">COMMUNITY FIELDWORK / 02</p><h1 className="serif text-5xl md:text-7xl mt-4">Submit a lost place.</h1><p className="muted max-w-xl leading-7 text-sm mt-5">Share a place with context and evidence. Every submission remains private until reviewed by an administrator.</p><div className="grid lg:grid-cols-[1fr_1fr] gap-10 mt-12"><form onSubmit={submit} className="space-y-5"><div><label className="text-xs block mb-2">Suggested title *</label><input className="field" required maxLength={120} value={title} onChange={e=>setTitle(e.target.value)} placeholder="What should this place be called?"/></div><div><label className="text-xs block mb-2">Category *</label><select className="field" value={category} onChange={e=>setCategory(e.target.value)}>{['Industrial heritage','Ruins','Old estates','Deserted villages','Railway structures','Historical sites','Abandoned-looking architecture'].map(c=><option key={c}>{c}</option>)}</select></div><div><label className="text-xs block mb-2">Approximate area or address *</label><input className="field" required value={area} onChange={e=>setArea(e.target.value)} placeholder="Town, region, or nearby public landmark"/></div><div><label className="text-xs block mb-2">Why is it worth documenting? *</label><textarea className="field min-h-32" required minLength={30} maxLength={4000} value={description} onChange={e=>setDescription(e.target.value)} placeholder="Describe what you observed, when, and what remains uncertain."/></div><div><label className="text-xs block mb-2">Evidence links (one URL per line)</label><textarea className="field min-h-20" value={sources} onChange={e=>setSources(e.target.value)} placeholder="Archive, heritage register, reliable reporting…"/></div><div><label className="text-xs block mb-2">Public access / permission status</label><select className="field" value={access} onChange={e=>setAccess(e.target.value)}>{['Unknown','Public access confirmed','Permission required','Restricted / private property','Public exterior only'].map(a=><option key={a}>{a}</option>)}</select></div><div><label className="text-xs block mb-2">Photos (optional, max 8 MB each)</label><label className="flex items-center gap-3 border border-dashed border-[#484d40] p-4 text-xs muted cursor-pointer"><UploadCloud size={18}/><span>{files?.length?`${files.length} file(s) selected`:'Choose image files'}</span><input type="file" accept="image/*" multiple className="hidden" onChange={e=>setFiles(e.target.files)}/></label></div><label className="flex items-start gap-3 text-xs muted leading-5"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1 accent-[#c4d36b]"/>I have the right to share this information and any uploaded material. I will not submit access codes, security details, or sensitive private-property information.</label>{error&&<p role="alert" className="text-sm text-[#f0a18b] border border-[#713f32] p-3">{error}</p>}<button disabled={busy} className="btn w-full disabled:opacity-50">{busy?'Submitting…':'Send for review'} <span>↗</span></button><p className="text-[10px] muted">Sign-in required. Never enter restricted property to gather evidence.</p></form><div className="space-y-4"><div className="flex items-center justify-between"><p className="eyebrow">PIN THE APPROXIMATE AREA</p><span className="text-xs muted flex gap-1 items-center"><MapPin size={13}/>{coords[1].toFixed(4)}, {coords[0].toFixed(4)}</span></div><p className="text-xs muted leading-5">Click the map to place a pin. For sensitive sites, choose a nearby public landmark rather than exact coordinates.</p><div className="h-[430px] border line"><AtlasMap places={[]} center={coords} onMapClick={(point)=>setCoords(point)}/></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs muted">Longitude</label><input className="field mt-2" type="number" step="any" value={coords[0]} onChange={e=>setCoords([Number(e.target.value),coords[1]])}/></div><div><label className="text-xs muted">Latitude</label><input className="field mt-2" type="number" step="any" value={coords[1]} onChange={e=>setCoords([coords[0],Number(e.target.value)])}/></div></div><div className="card p-5"><p className="eyebrow">WHAT HAPPENS NEXT</p><ol className="text-xs muted leading-6 mt-3 list-decimal pl-4"><li>We validate the submission and check for nearby duplicates.</li><li>A moderator reviews the description, evidence, and sensitivity.</li><li>Only approved records become eligible for public display.</li></ol></div></div></div></div>}
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { CheckCircle2, ArrowUpRight } from 'lucide-react';
+
+const initial = [80.9462, 26.8467] as [number, number];
+
+export default function Submit() {
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('Ruins');
+  const [description, setDescription] = useState('');
+  const [area, setArea] = useState('');
+  const [lat, setLat] = useState('26.8467');
+  const [lng, setLng] = useState('80.9462');
+  const [consent, setConsent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!consent) {
+      setError('Please confirm you have the right to share this information.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: err } = await supabase.from('submissions').insert([{
+        title,
+        category,
+        description,
+        area,
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        status: 'pending',
+        confidence: 'User submission'
+      }]);
+      if (err) throw err;
+      setDone(true);
+    } catch (err: any) {
+      setError(err.message || 'Submission failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-24 min-h-[75vh] flex flex-col items-center justify-center text-center">
+        <CheckCircle2 size={38} className="text-[#c4d36b]" />
+        <p className="eyebrow mt-4">FIELD NOTE RECEIVED</p>
+        <h1 className="serif text-3xl mt-2">Record queued for validation</h1>
+        <p className="text-xs muted mt-2 max-w-sm">Thank you. The structural records and coordinates have been securely saved to the database index.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 md:px-10 py-12 md:py-20">
+      <p className="eyebrow">COMMUNITY FIELDWORK / 02</p>
+      <h1 className="serif text-5xl md:text-7xl mt-4 max-w-2xl font-normal tracking-tight text-[#f0f4eb]">Submit a record.</h1>
+      
+      <form onSubmit={submit} className="mt-12 max-w-2xl space-y-6">
+        {error && <p className="text-red-400 text-xs">{error}</p>}
+        <div>
+          <label className="block text-xs muted mb-1">Location Title</label>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className="field w-full" required />
+        </div>
+        <div>
+          <label className="block text-xs muted mb-1">Category</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className="field w-full">
+            {['Industrial heritage', 'Ruins', 'Old estates', 'Deserted villages', 'Railway structures', 'Historical sites'].map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs muted mb-1">Region / City</label>
+          <input value={area} onChange={(e) => setArea(e.target.value)} className="field w-full" required />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs muted mb-1">Latitude</label>
+            <input value={lat} onChange={(e) => setLat(e.target.value)} className="field w-full" required />
+          </div>
+          <div>
+            <label className="block text-xs muted mb-1">Longitude</label>
+            <input value={lng} onChange={(e) => setLng(e.target.value)} className="field w-full" required />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs muted mb-1">Description / Condition Logs</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="field w-full min-h-[120px]" required />
+        </div>
+        <div className="flex items-start gap-3 pt-2">
+          <input type="checkbox" id="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1" />
+          <label htmlFor="consent" className="text-xs muted select-none cursor-pointer leading-relaxed">
+            I verify these coordinates map out public access areas or documented historical sites. I hold the necessary rights to log this record.
+          </label>
+        </div>
+        <button type="submit" disabled={loading} className="btn py-3 px-6 text-sm font-medium mt-4">
+          {loading ? 'Submitting field entry...' : 'Transmit Record'} <ArrowUpRight size={14} />
+        </button>
+      </form>
+    </div>
+  );
+}
