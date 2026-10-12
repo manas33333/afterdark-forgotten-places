@@ -1,6 +1,63 @@
 'use client';
-import {useEffect,useRef} from 'react'; import maplibregl from 'maplibre-gl'; import type {Place} from '@/lib/data';
-export function AtlasMap({places,onSelect,center,onMapClick,interactive=true}:{places:Place[];onSelect?:(p:Place)=>void;center?:[number,number];onMapClick?:(coords:[number,number])=>void;interactive?:boolean}){const el=useRef<HTMLDivElement>(null);const map=useRef<maplibregl.Map|null>(null);const markers=useRef<maplibregl.Marker[]>([]);
-useEffect(()=>{if(!el.current||map.current)return;map.current=new maplibregl.Map({container:el.current,style:process.env.NEXT_PUBLIC_MAP_STYLE_URL||'https://tiles.openfreemap.org/styles/liberty',center:center||[80.9462,26.8467],zoom:11,attributionControl:true});map.current.addControl(new maplibregl.NavigationControl(),'top-right');map.current.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left');if(onMapClick)map.current.on('click',(e)=>onMapClick([e.lngLat.lng,e.lngLat.lat]));return()=>{markers.current.forEach(m=>m.remove());map.current?.remove();map.current=null}},[]);
-useEffect(()=>{if(!map.current)return;markers.current.forEach(m=>m.remove());markers.current=[];places.forEach(p=>{const node=document.createElement('button');node.className='map-marker';node.setAttribute('aria-label',`View ${p.name}`);node.title=p.name;node.onclick=()=>onSelect?.(p);const marker=new maplibregl.Marker({element:node}).setLngLat([p.longitude,p.latitude]).addTo(map.current!);markers.current.push(marker)});},[places,onSelect]);
-useEffect(()=>{if(center&&map.current)map.current.flyTo({center,zoom:11,duration:900})},[center]);return <div ref={el} className="h-full w-full bg-[#171a16]" aria-label="Interactive map of published atlas locations"/>}
+import { useEffect, useRef } from 'react';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+export function AtlasMap({ places, onSelect, center, onMapClick }: any) {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<maplibregl.Map | null>(null);
+  const markers = useRef<maplibregl.Marker[]>([]);
+
+  useEffect(() => {
+    if (!mapContainer.current || map.current) return;
+
+    map.current = new maplibregl.Map({
+      container: mapContainer.current,
+      style: process.env.NEXT_PUBLIC_MAP_STYLE_URL || 'https://openfreemap.org',
+      center: center || [80.9462, 26.8467],
+      zoom: 11,
+      attributionControl: { compact: true }
+    });
+
+    map.current.on('click', (e) => {
+      if (onMapClick) {
+        onMapClick({ coords: [e.lngLat.lng, e.lngLat.lat] });
+      }
+    });
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!map.current) return;
+
+    markers.current.forEach((m) => m.remove());
+    markers.current = [];
+
+    places.forEach((p: any) => {
+      const el = document.createElement('button');
+      el.className = 'w-4 h-4 bg-[#c4d36b] rounded-full border border-[#10120d] transition-all hover:scale-125';
+      el.addEventListener('click', () => onSelect && onSelect(p));
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([p.longitude, p.latitude])
+        .addTo(map.current!);
+
+      markers.current.push(marker);
+    });
+  }, [places, onSelect]);
+
+  useEffect(() => {
+    if (!map.current || !center) return;
+    map.current.flyTo({ center, zoom: 11, duration: 900 });
+  }, [center]);
+
+  return (
+    <div ref={mapContainer} className="h-full w-full bg-[#171a16]" aria-label="Atlas Interactive Map Workspace" />
+  );
+}
