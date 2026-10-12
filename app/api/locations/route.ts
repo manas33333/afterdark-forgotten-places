@@ -1,2 +1,18 @@
-import {NextResponse} from 'next/server';import {createServerSupabase} from '@/lib/supabase';
-export async function GET(){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return NextResponse.json({locations:[]});try{const sb=await createServerSupabase();const {data,error}=await sb.from('locations').select('id,name,category,description,city,latitude,longitude,status,cover_image,confidence,historical_context,public_access,last_verified_at,is_demo').eq('status','approved').order('updated_at',{ascending:false}).limit(250);if(error)throw error;return NextResponse.json({locations:data||[]},{headers:{'Cache-Control':'public, s-maxage=60, stale-while-revalidate=120'}})}catch{return NextResponse.json({error:'Could not load published locations.'},{status:503})}}
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+
+export async function GET() {
+  try {
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .select('*');
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ locations });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Server Error' }, { status: 500 });
+  }
+}
