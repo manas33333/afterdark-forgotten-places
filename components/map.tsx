@@ -11,12 +11,13 @@ export function AtlasMap({ places, onSelect, center, onMapClick }: any) {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
+    // Using a globally open vector tile style that never blocks Vercel domains
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: process.env.NEXT_PUBLIC_MAP_STYLE_URL || 'https://openfreemap.org',
+      style: 'https://cartocdn.com',
       center: center || [80.9462, 26.8467],
       zoom: 11,
-      attributionControl: { compact: true }
+      attributionControl: false
     });
 
     map.current.on('click', (e) => {
@@ -58,6 +59,6 @@ export function AtlasMap({ places, onSelect, center, onMapClick }: any) {
   }, [center]);
 
   return (
-    <div ref={mapContainer} className="h-full w-full bg-[#171a16]" aria-label="Atlas Interactive Map Workspace" />
+    <div ref={mapContainer} className="h-full w-full bg-[#10120d]" aria-label="Atlas Interactive Map Workspace" />
   );
 }
