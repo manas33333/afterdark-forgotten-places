@@ -1,3 +1,64 @@
 'use client';
-import {useState} from 'react';import {useRouter} from 'next/navigation';import { supabase } from '@/lib/supabase';import {ArrowUpRight,LogIn,UserPlus} from 'lucide-react';
-export default function AuthPage(){const [mode,setMode]=useState<'signin'|'signup'>('signin');const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [name,setName]=useState('');const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');const [error,setError]=useState('');const router=useRouter();async function submit(e:React.FormEvent){e.preventDefault();setBusy(true);setMessage('');setError('');try{const sb=createClient();if(mode==='signup'){const {data,error}=await sb.auth.signUp({email,password,options:{data:{name}}});if(error)throw error;if(data.session){setMessage('Account created. You are signed in.');router.push('/submit');router.refresh()}else setMessage('Account created. Check your email to confirm your address, then sign in.')}else{const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;setMessage('Signed in successfully.');router.push('/submit');router.refresh()}}catch(e){setError(e instanceof Error?e.message:'Authentication failed.')}finally{setBusy(false)}}return <div className="max-w-xl mx-auto px-6 py-16 md:py-24 min-h-[75vh]"><p className="eyebrow">CONTRIBUTOR ACCESS</p><h1 className="serif text-5xl mt-4">Enter the atlas.</h1><p className="muted text-sm leading-6 mt-4">Browse freely. Sign in when you want to add evidence or contribute a record.</p><div className="flex gap-2 mt-8"><button className={`pill ${mode==='signin'?'!border-[#c4d36b] !text-[#c4d36b]':''}`} onClick={()=>setMode('signin')}>Sign in</button><button className={`pill ${mode==='signup'?'!border-[#c4d36b] !text-[#c4d36b]':''}`} onClick={()=>setMode('signup')}>Create account</button></div><form onSubmit={submit} className="card p-6 mt-4 space-y-4">{mode==='signup'&&<div><label className="text-xs block mb-2">Display name</label><input className="field" value={name} onChange={e=>setName(e.target.value)} required maxLength={80} placeholder="How should we credit you?"/></div>}<div><label className="text-xs block mb-2">Email address</label><input className="field" type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required placeholder="you@example.com"/></div><div><label className="text-xs block mb-2">Password</label><input className="field" type="password" autoComplete={mode==='signin'?'current-password':'new-password'} minLength={8} value={password} onChange={e=>setPassword(e.target.value)} required placeholder="At least 8 characters"/></div>{error&&<p role="alert" className="text-xs text-[#f0a18b]">{error}</p>}{message&&<p role="status" className="text-xs text-[#c4d36b]">{message}</p>}<button disabled={busy} className="btn w-full">{busy?'Please wait…':mode==='signin'?'Sign in':'Create account'} {mode==='signin'?<LogIn size={15}/>:<UserPlus size={15}/>}</button></form><p className="text-[10px] muted leading-5 mt-4">Authentication is handled by your configured Supabase project. Enable email auth and configure confirmation templates in Supabase settings.</p><a href="/" className="text-xs underline underline-offset-4 mt-6 inline-flex items-center gap-2">Back to the atlas <ArrowUpRight size={13}/></a></div>}
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { ArrowUpRight, LogIn, UserPlus } from 'lucide-react';
+
+export default function AuthPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      if (mode === 'signin') {
+        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+        if (err) throw err;
+      } else {
+        const { error: err } = await supabase.auth.signUp({ email, password });
+        if (err) throw err;
+      }
+      router.push('/explore');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center p-4">
+      <div className="w-full max-w-md card p-6 border border-[#373b33] bg-[#10120d]">
+        <h2 className="serif text-2xl mb-6">{mode === 'signin' ? 'Sign In' : 'Create Account'}</h2>
+        {error && <p className="text-red-400 text-xs mb-4">{error}</p>}
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div>
+            <label className="block text-xs muted mb-1">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="field w-full" required />
+          </div>
+          <div>
+            <label className="block text-xs muted mb-1">Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="field w-full" required />
+          </div>
+          <button type="submit" disabled={loading} className="btn w-full py-2 justify-center mt-2">
+            {loading ? 'Processing...' : mode === 'signin' ? 'Access Index' : 'Register Account'}
+            <ArrowUpRight size={14} className="ml-1" />
+          </button>
+        </form>
+        <div className="mt-6 text-center text-xs">
+          <button onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')} className="text-[#c4d36b] hover:underline">
+            {mode === 'signin' ? "Don't have an account? Sign up" : 'Already registered? Sign in'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
