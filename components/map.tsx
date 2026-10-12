@@ -11,12 +11,12 @@ export function AtlasMap({ places, onSelect, center, onMapClick }: any) {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    // Using a globally open vector tile style that never blocks Vercel domains
+    // Using an open-source style sheet that requires zero API keys and works instantly
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://cartocdn.com',
+      style: 'https://demotiles.maplibre.org/style.json',
       center: center || [80.9462, 26.8467],
-      zoom: 11,
+      zoom: 3, // Zoomed out slightly to ensure the layout loads broad boundaries immediately
       attributionControl: false
     });
 
