@@ -11,12 +11,12 @@ export function AtlasMap({ places, onSelect, center, onMapClick }: any) {
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    // Using an open-source style sheet that requires zero API keys and works instantly
+    // Using Stadia Smooth Dark style for ultra-detailed high-performance maps requiring no API key tokens
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://demotiles.maplibre.org/style.json',
+      style: 'https://stadiamaps.com',
       center: center || [80.9462, 26.8467],
-      zoom: 3, // Zoomed out slightly to ensure the layout loads broad boundaries immediately
+      zoom: 11,
       attributionControl: false
     });
 
