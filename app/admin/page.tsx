@@ -1,5 +1,64 @@
 'use client';
-import {useEffect,useState} from 'react';
-import { supabase } from '@/lib/supabase';import {Check, X, MessageSquareText, ShieldAlert, RefreshCw} from 'lucide-react';
-type Submission={id:string;title:string;category:string;description:string;area:string;status:string;created_at:string;latitude:number;longitude:number;user_id:string;sources?:string[]};
-export default function Admin(){const [rows,setRows]=useState<Submission[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [note,setNote]=useState<Record<string,string>>({});const [status,setStatus]=useState('pending');const [busy,setBusy]=useState('');async function load(){setLoading(true);setError('');try{const sb=createClient();const {data:{session}}=await sb.auth.getSession();if(!session){setError('Sign in with an administrator account. Configure Supabase Auth and assign your profile role = admin in the database.');setRows([]);return}const r=await fetch(`/api/admin/submissions?status=${status}`,{headers:{Authorization:`Bearer ${session.access_token}`}});const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to load moderation queue.');setRows(d.submissions||[])}catch(e){setError(e instanceof Error?e.message:'Unable to load queue.')}finally{setLoading(false)}}useEffect(()=>{load()},[status]);async function action(id:string,decision:'approved'|'rejected'|'needs_info'){setBusy(id);setError('');try{const sb=createClient();const {data:{session}}=await sb.auth.getSession();const r=await fetch(`/api/admin/submissions/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session?.access_token||''}`},body:JSON.stringify({status:decision,moderation_note:note[id]||''})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Action failed');setRows(old=>old.filter(x=>x.id!==id))}catch(e){setError(e instanceof Error?e.message:'Action failed')}finally{setBusy('')}}return <div className="max-w-7xl mx-auto px-5 md:px-10 py-12 min-h-[75vh]"><div className="flex flex-wrap justify-between items-end gap-4"><div><p className="eyebrow">CONTROL ROOM / RESTRICTED</p><h1 className="serif text-5xl mt-3">Review queue.</h1><p className="text-sm muted mt-3">Only authorized administrators can read or modify private submissions.</p></div><button className="btn btn-ghost" onClick={load}><RefreshCw size={14}/> Refresh queue</button></div><div className="flex gap-2 mt-8">{['pending','needs_info','approved','rejected'].map(s=><button key={s} onClick={()=>setStatus(s)} className={`pill ${status===s?'!border-[#c4d36b] !text-[#c4d36b]':''}`}>{s.replace('_',' ')}</button>)}</div>{error&&<div role="alert" className="mt-6 border border-[#70473b] bg-[#281a16] text-[#f0b09b] p-4 text-sm flex gap-3"><ShieldAlert size={18} className="shrink-0"/>{error}</div>}{loading?<p className="muted text-sm py-12">Loading moderation queue…</p>:!rows.length?<div className="card p-12 text-center mt-5"><p className="serif text-3xl">Queue is clear.</p><p className="muted text-xs mt-3">No {status.replace('_',' ')} submissions available.</p></div>:<div className="mt-5 space-y-4">{rows.map(s=><section key={s.id} className="card p-5 md:p-7"><div className="flex flex-col md:flex-row gap-5"><div className="flex-1"><div className="flex items-center gap-3"><span className="pill">{s.category}</span><span className="text-[10px] muted">{new Date(s.created_at).toLocaleString()}</span></div><h2 className="serif text-3xl mt-3">{s.title}</h2><p className="text-xs muted mt-2">{s.area} · {s.latitude?.toFixed(5)}, {s.longitude?.toFixed(5)}</p><p className="text-sm leading-6 text-[#c3c6bc] mt-4">{s.description}</p>{s.sources?.length>0&&<div className="mt-4 text-xs">Evidence: {s.sources.map((src,i)=><a key={i} href={src} target="_blank" rel="noreferrer" className="block underline text-[#c4d36b] mt-1">{src}</a>)}</div>}<a href={`https://www.openstreetmap.org/?mlat=${s.latitude}&mlon=${s.longitude}#map=17/${s.latitude}/${s.longitude}`} target="_blank" rel="noreferrer" className="text-xs underline inline-block mt-4">Open proposed pin ↗</a></div><div className="md:w-72 shrink-0"><label className="text-xs muted">Internal moderation note</label><textarea className="field mt-2 min-h-24" value={note[s.id]||''} onChange={e=>setNote({...note,[s.id]:e.target.value})} placeholder="Reason, requested changes, evidence reviewed…"/><div className="grid grid-cols-2 gap-2 mt-3"><button disabled={!!busy} onClick={()=>action(s.id,'approved')} className="btn !py-2"><Check size={14}/> Approve</button><button disabled={!!busy} onClick={()=>action(s.id,'rejected')} className="btn btn-ghost !py-2"><X size={14}/> Reject</button></div><button disabled={!!busy} onClick={()=>action(s.id,'needs_info')} className="btn btn-ghost w-full !py-2 mt-2"><MessageSquareText size={14}/> Request more info</button></div></div></section>)}</div>}</div>}
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Check, X, MessageSquareText, ShieldAlert, RefreshCw } from 'lucide-react';
+
+type Submission = {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  area: string;
+  status: string;
+  created_at: string;
+  latitude: number;
+  longitude: number;
+  confidence: string;
+  submitted_by: string;
+};
+
+export default function Admin() {
+  const [rows, setRows] = useState<Submission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: err } = await supabase
+        .from('submissions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (err) throw err;
+      setRows(data || []);
+    } catch (e: any) {
+      setError(e.message || 'Sign in error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
+      {loading && <p>Loading records...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      {notice && <p className="text-green-500">{notice}</p>}
+      <div className="space-y-4">
+        {rows.map((row) => (
+          <div key={row.id} className="border p-4 rounded shadow-sm">
+            <h3 className="font-semibold text-lg">{row.title}</h3>
+            <p className="text-sm text-gray-400">{row.category} - {row.area}</p>
+            <p className="mt-2 text-sm">{row.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
