@@ -14,7 +14,7 @@ export function AtlasMap({ places, onSelect, center, onMapClick }: any) {
     // Using Stadia Smooth Dark style for ultra-detailed high-performance maps requiring no API key tokens
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://stadiamaps.com',
+      style: 'https://cartocdn.com',
       center: center || [80.9462, 26.8467],
       zoom: 11,
       attributionControl: false
