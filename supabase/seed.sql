@@ -1,0 +1,3 @@
+-- Optional, fictional seed examples. These are deliberately not inserted automatically
+-- because public map coordinates should never be mistaken for verified locations.
+-- Prefer app/lib/data.ts for clearly labeled local-only illustrative records.
